@@ -76,11 +76,17 @@ dd if=/dev/zero of=efiboot.img bs=$SIZE count=1
 mmd -i efiboot.img efi efi/boot
 mcopy -vi efiboot.img $HOME/LIVE_BOOT/tmp/bootx64.efi ::efi/boot/
 
+# 获取原始文件名（不含路径和扩展名）
+ORIGINAL_FILENAME=$(basename /mnt/custom.img)
+ORIGINAL_FILENAME=${ORIGINAL_FILENAME%.*}
+ISO_OUTPUT="/output/${ORIGINAL_FILENAME}.iso"
+COMPRESSED_OUTPUT="/output/${ORIGINAL_FILENAME}.7z"
+
 echo 构建 ISO
 xorriso \
     -as mkisofs \
     -iso-level 3 \
-    -o "${HOME}/LIVE_BOOT/debian-custom.iso" \
+    -o "$ISO_OUTPUT" \
     -full-iso9660-filenames \
     -volid "DEBIAN_CUSTOM" \
     -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
@@ -97,14 +103,6 @@ xorriso \
     -append_partition 2 0xef ${HOME}/LIVE_BOOT/staging/EFI/boot/efiboot.img \
     "${HOME}/LIVE_BOOT/staging"
 
-# 获取原始文件名（不含路径和扩展名）
-ORIGINAL_FILENAME=$(basename /mnt/custom.img)
-ORIGINAL_FILENAME=${ORIGINAL_FILENAME%.*}
-ISO_OUTPUT="/output/${ORIGINAL_FILENAME}.iso"
-COMPRESSED_OUTPUT="/output/${ORIGINAL_FILENAME}.7z"
-
-echo 复制并压缩输出
-cp -v $HOME/LIVE_BOOT/debian-custom.iso "$ISO_OUTPUT"
 chmod -v 666 "$ISO_OUTPUT"
 
 # 使用7z进行最大压缩
