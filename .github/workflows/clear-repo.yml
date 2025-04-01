@@ -1,4 +1,4 @@
-name: Clear Repository
+name: 清空仓库！！！
 
 on:
   workflow_dispatch:  # 手动触发工作流

@@ -1,0 +1,50 @@
+name: 清空仓库自动化附件
+
+on:
+  workflow_dispatch:  # 手动触发工作流
+
+jobs:
+  clear-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      
+      - name: Install GitHub CLI
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh
+      
+      - name: Delete all artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 获取仓库信息
+          REPO="${{ github.repository }}"
+          
+          # 获取所有工作流运行ID
+          echo "获取所有工作流运行ID..."
+          WORKFLOW_RUNS=$(gh api repos/$REPO/actions/runs --paginate | jq -r '.workflow_runs[].id')
+          
+          # 对每个工作流运行，删除其所有构件
+          for RUN_ID in $WORKFLOW_RUNS; do
+            echo "处理工作流运行 ID: $RUN_ID"
+            
+            # 获取此运行的所有构件
+            ARTIFACTS=$(gh api repos/$REPO/actions/runs/$RUN_ID/artifacts --paginate | jq -r '.artifacts[].id')
+            
+            # 删除每个构件
+            for ARTIFACT_ID in $ARTIFACTS; do
+              echo "删除构件 ID: $ARTIFACT_ID"
+              gh api -X DELETE repos/$REPO/actions/artifacts/$ARTIFACT_ID
+            done
+          done
+          
+          echo "所有构件已清除完毕"
