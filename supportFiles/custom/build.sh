@@ -15,6 +15,8 @@ echo 将支持文件复制到 chroot
 cp -v /supportFiles/installChroot.sh $HOME/LIVE_BOOT/chroot/installChroot.sh
 cp -v /supportFiles/custom/ddd $HOME/LIVE_BOOT/chroot/usr/bin/ddd
 chmod +x $HOME/LIVE_BOOT/chroot/usr/bin/ddd
+# 确保安装脚本有执行权限
+chmod +x $HOME/LIVE_BOOT/chroot/installChroot.sh
 cp -v /supportFiles/sources.list $HOME/LIVE_BOOT/chroot/etc/apt/sources.list
 
 echo 挂载 dev / proc / sys
