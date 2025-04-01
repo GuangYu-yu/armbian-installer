@@ -138,11 +138,17 @@ if [ -f "imm/custom.img" ]; then
   ls -lh imm/
   echo "✅ 准备合成 自定义OpenWrt 安装器"
   
-  # 获取原始文件名（不含路径和所有扩展名）
-  ORIGINAL_FILENAME=$(basename "$1")
-  # 处理可能有多个扩展名的情况（如 .qcow2.gz）
-  ORIGINAL_FILENAME=${ORIGINAL_FILENAME%%.*}  # 使用%% 而不是 % 来移除所有扩展名
-  echo "使用原始文件名: $ORIGINAL_FILENAME"
+  # 从解压后的文件名中提取基本名称
+  BASE_FILENAME=$(basename "$EXTRACTED_FILE")
+  # 移除常见的镜像格式后缀
+  BASE_FILENAME=${BASE_FILENAME%.img}
+  BASE_FILENAME=${BASE_FILENAME%.qcow2}
+  BASE_FILENAME=${BASE_FILENAME%.vdi}
+  BASE_FILENAME=${BASE_FILENAME%.vmdk}
+  BASE_FILENAME=${BASE_FILENAME%.vhd}
+  BASE_FILENAME=${BASE_FILENAME%.raw}
+  
+  echo "使用文件名: $BASE_FILENAME"
 else
   echo "❌ 错误：最终文件 imm/custom.img 不存在"
   exit 1
@@ -153,6 +159,6 @@ docker run --privileged --rm \
         -v $(pwd)/output:/output \
         -v $(pwd)/supportFiles:/supportFiles:ro \
         -v $(pwd)/imm/custom.img:/mnt/custom.img \
-        -e EXTRACTED_FILE="$ORIGINAL_FILENAME" \
+        -e EXTRACTED_FILE="$BASE_FILENAME" \
         debian:buster \
         /supportFiles/custom/build.sh
