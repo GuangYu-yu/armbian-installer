@@ -1,0 +1,115 @@
+#!/bin/bash
+
+show_menu() {
+    clear
+    echo "=========================================="
+    echo "  自定义 OpenWrt 安装程序 by wukongdaily"
+    echo "=========================================="
+    echo "1. 安装"
+    echo "0. 退出"
+    echo "====================================="
+}
+
+detect_disk() {
+    # 获取所有可用磁盘
+    local disks=($(lsblk -d -n -o NAME,RO,TYPE | awk '$3 == "disk" && $2 == "0" {print "/dev/"$1}'))
+
+    # 错误处理
+    if [ ${#disks[@]} -eq 0 ]; then
+        echo "错误：未检测到可用磁盘设备！" >&2
+        exit 1
+    fi
+
+    # 显示磁盘列表及大小
+    echo "可用磁盘：" >&2
+    for i in "${!disks[@]}"; do
+        size=$(lsblk -d -n -b -o SIZE ${disks[i]} | awk '{printf "%.2f GB", $1/1000000000}')
+        printf "%2d. %-12s %8s\n" $((i+1)) "${disks[i]}" "$size" >&2
+    done
+
+    # 用户选择逻辑
+    while true; do
+        read -p "选择目标磁盘编号 (1-${#disks[@]}): " choice
+        if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#disks[@]} )); then
+            selected_disk="${disks[choice-1]}"
+            echo "[安全提示] 选择的磁盘：$selected_disk" >&2
+            echo "$selected_disk"
+            return
+        else
+            echo "输入无效。请输入有效的编号 (1-${#disks[@]})"
+        fi
+    done
+}
+
+confirm_danger() {
+    local target_disk=$1
+    local image_file=$2
+    
+    echo "!! 危险操作确认 !!"
+    echo "──────────────────────────────────────"
+    echo "目标设备：$target_disk"
+    echo "镜像文件： $image_file"
+    echo "──────────────────────────────────────"
+    echo "这将擦除 $target_disk 上的所有数据！"
+    read -p "确认写入操作？（输入大写 YES 以继续）： " confirm
+
+    if [ "$confirm" != "YES" ]; then
+        echo "操作已取消"
+        exit 0
+    fi
+
+}
+
+install_system() {
+    local image_name=$1
+    local image_file="/mnt/$image_name"
+    local target_disk
+    
+    # 获取用户选择的磁盘
+    target_disk=$(detect_disk)
+    
+    # 显示磁盘信息
+    echo -e "\n磁盘信息："
+    fdisk -l "$target_disk" | grep Disk | head -1
+    
+    # 检查镜像文件是否存在
+    if [ ! -f "$image_file" ]; then
+        echo -e "\n错误：未找到镜像文件 $image_file！"
+        echo "请执行以下操作："
+        echo "1. 将镜像文件放置在 /mnt 目录中"
+        echo "2. 验证文件权限"
+        exit 1
+    fi
+    
+    # 最终确认
+    confirm_danger "$target_disk" "$image_file"
+    
+    echo -e "\n开始写入系统...（按 Ctrl+C 取消）"
+    sleep 2
+    
+    # 执行写入操作
+    dd if="$image_file" of="$target_disk" bs=4M conv=fsync status=progress
+    
+    echo "──────────────────────────────────────"
+    echo "自定义 OpenWrt 安装成功："
+}
+
+while true; do
+    show_menu
+    read -p "输入您的选择 [0-1]: " choice
+    
+    case $choice in
+        1)
+            install_system "custom.img"
+            break
+            ;;
+        0)
+            echo "退出安装程序"
+            exit 0
+            ;;
+        *)
+            echo "选项无效，请重试"
+            sleep 2
+            ;;
+    esac
+done
