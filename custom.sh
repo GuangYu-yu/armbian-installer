@@ -138,9 +138,10 @@ if [ -f "imm/custom.img" ]; then
   ls -lh imm/
   echo "✅ 准备合成 自定义OpenWrt 安装器"
   
-  # 获取原始文件名（不含路径和扩展名）
+  # 获取原始文件名（不含路径和所有扩展名）
   ORIGINAL_FILENAME=$(basename "$1")
-  ORIGINAL_FILENAME=${ORIGINAL_FILENAME%.*}
+  # 处理可能有多个扩展名的情况（如 .qcow2.gz）
+  ORIGINAL_FILENAME=${ORIGINAL_FILENAME%%.*}  # 使用%% 而不是 % 来移除所有扩展名
   echo "使用原始文件名: $ORIGINAL_FILENAME"
 else
   echo "❌ 错误：最终文件 imm/custom.img 不存在"
