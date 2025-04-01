@@ -137,6 +137,11 @@ fi
 if [ -f "imm/custom.img" ]; then
   ls -lh imm/
   echo "✅ 准备合成 自定义OpenWrt 安装器"
+  
+  # 获取原始文件名（不含路径和扩展名）
+  ORIGINAL_FILENAME=$(basename "$1")
+  ORIGINAL_FILENAME=${ORIGINAL_FILENAME%.*}
+  echo "使用原始文件名: $ORIGINAL_FILENAME"
 else
   echo "❌ 错误：最终文件 imm/custom.img 不存在"
   exit 1
@@ -147,5 +152,6 @@ docker run --privileged --rm \
         -v $(pwd)/output:/output \
         -v $(pwd)/supportFiles:/supportFiles:ro \
         -v $(pwd)/imm/custom.img:/mnt/custom.img \
+        -e EXTRACTED_FILE="$ORIGINAL_FILENAME" \
         debian:buster \
         /supportFiles/custom/build.sh
