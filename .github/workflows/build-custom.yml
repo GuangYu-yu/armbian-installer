@@ -1,53 +1,38 @@
-name: "Build Custom OpenWrt Installer ISO"
+name: "构建自定义 OpenWrt 安装程序 ISO"
 
 on:
   workflow_dispatch:
     inputs:
       download_url:
-        description: '请输入下载地址(扩展名 .img.gz/.img.xz/.img.zip)'
+        description: '原始URL'
         required: true
-        default: 'https://default.example.com/file.img.gz'
 
 jobs:
   build-release:
-    name: "Build and Release"
+    name: "构建和发布"
     runs-on: "ubuntu-22.04"
 
     steps:
-      - name: "Checking out git repository"
-        uses: actions/checkout@v2
+      - name: "检出 Git 仓库"
+        uses: actions/checkout@v3
 
-      - name: Set executable permissions
+      - name: "安装依赖"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y file curl gzip bzip2 xz-utils p7zip-full unzip qemu-utils tar
+
+      - name: 设置可执行权限
         run: |
           chmod +x "${{ github.workspace }}/custom.sh"
           chmod +x "${{ github.workspace }}/supportFiles/custom/build.sh"
 
-      - name: Validate Download URL
-        run: |
-          DEFAULT_URL="https://default.example.com/file.img.gz"
-          USER_INPUT_URL="${{ github.event.inputs.download_url }}"
-          
-          if [[ "$USER_INPUT_URL" == "$DEFAULT_URL" ]]; then
-            echo "❌ 错误：请修改默认下载地址！当前地址为无效占位符。"
-            exit 1
-          fi
-          
-          if [[ ! "$USER_INPUT_URL" =~ ^https?://.+\.[gG][zZ]$|^https?://.+\.[xX][zZ]$|^https?://.+\.[zZ][iI][pP]$ ]]; then
-            echo "❌ 错误：地址需以 http(s) 开头且扩展名为 .gz/.xz/.zip"
-            echo "当前输入：$USER_INPUT_URL"
-            exit 1
-          fi
-
-      - name: "Build Image"
+      - name: "构建镜像"
         run: |
           download_url="${{ github.event.inputs.download_url }}"
           ./custom.sh "$download_url"
 
-      - name: "Publish"
-        uses: softprops/action-gh-release@v2.2.1
+      - name: 上传压缩后的镜像
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: "Custom-Installer-x86_64-ISO"
-          body_path: "${{ github.workspace }}/supportFiles/custom/info.md"
-          files: |
-            output/custom-installer-x86_64.iso
-          token: "${{ secrets.GITHUB_TOKEN }}"
+          name: custom-installer
+          path: output/*.7z
