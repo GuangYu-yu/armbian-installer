@@ -3,7 +3,7 @@
 
 echo 安装所需工具
 apt-get update
-apt-get -y install debootstrap squashfs-tools xorriso isolinux syslinux-efi  grub-pc-bin grub-efi-amd64-bin mtools dosfstools parted locales fonts-wqy-microhei
+apt-get -y install debootstrap squashfs-tools xorriso isolinux syslinux-efi  grub-pc-bin grub-efi-amd64-bin mtools dosfstools parted
 
 echo 创建用于制作镜像的目录
 mkdir -p $HOME/LIVE_BOOT
