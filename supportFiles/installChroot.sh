@@ -13,15 +13,10 @@ apt-get -y install apt-utils
 apt-get -y upgrade
 
 echo 设置语言环境
-apt-get -y install locales fonts-wqy-microhei
+apt-get -y install locales
 sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
-# 添加中文支持
-sed -i -e 's/# zh_CN.UTF-8 UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen
-# 如果上面的替换失败（可能是因为注释格式不同），则直接添加
-grep -q "zh_CN.UTF-8 UTF-8" /etc/locale.gen || echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen
 dpkg-reconfigure --frontend=noninteractive locales
-# 设置默认语言为中文
-update-locale LANG=zh_CN.UTF-8
+update-locale LANG=en_US.UTF-8
 
 echo 安装软件包
 apt-get install -y --no-install-recommends linux-image-amd64 live-boot systemd-sysv
