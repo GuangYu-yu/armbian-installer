@@ -76,9 +76,11 @@ dd if=/dev/zero of=efiboot.img bs=$SIZE count=1
 mmd -i efiboot.img efi efi/boot
 mcopy -vi efiboot.img $HOME/LIVE_BOOT/tmp/bootx64.efi ::efi/boot/
 
-# 获取原始文件名（不含路径和扩展名）
-ORIGINAL_FILENAME=$(basename /mnt/custom.img)
-ORIGINAL_FILENAME=${ORIGINAL_FILENAME%.*}
+# 如果环境变量EXTRACTED_FILE存在，则使用它
+if [ ! -z "$EXTRACTED_FILE" ]; then
+  ORIGINAL_FILENAME="$EXTRACTED_FILE"
+fi
+
 ISO_OUTPUT="/output/${ORIGINAL_FILENAME}.iso"
 COMPRESSED_OUTPUT="/output/${ORIGINAL_FILENAME}.7z"
 
@@ -102,6 +104,13 @@ xorriso \
         -isohybrid-gpt-basdat \
     -append_partition 2 0xef ${HOME}/LIVE_BOOT/staging/EFI/boot/efiboot.img \
     "${HOME}/LIVE_BOOT/staging"
+
+# 如果需要重命名ISO文件
+if [ ! -z "$EXTRACTED_FILE" ] && [ "$ORIGINAL_FILENAME" != "$EXTRACTED_FILE" ]; then
+  FINAL_ISO="/output/${EXTRACTED_FILE}.iso"
+  mv -v "$ISO_OUTPUT" "$FINAL_ISO"
+  ISO_OUTPUT="$FINAL_ISO"
+fi
 
 chmod -v 666 "$ISO_OUTPUT"
 
