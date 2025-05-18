@@ -1,6 +1,8 @@
 # armbian-installer
 它是一个基于Debian Live系统的img镜像安装器。采用github action构建打包。目前实现了在x86-64设备上 快速安装armbian和openwrt的功能。 
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/GuangYu-yu/armbian-installer)
+
 ## 背景解读
 - 嵌入式设备的系统通常采用img格式,一般出现在ARM设备中，安装方式通常是线刷、烧录SD卡等方式。
 - 但近年来，openwrt 和 armbian 也逐渐兼容适配通用型x86-64设备,随着软路由和NAS虚拟机逐渐普及。
