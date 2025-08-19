@@ -7,6 +7,7 @@ if [ -z "${1:-}" ]; then
   exit 1
 fi
 
+rm -rf imm
 mkdir -p imm
 DOWNLOAD_URL="$1"
 filename=$(basename "$DOWNLOAD_URL")  # 从 URL 提取文件名
