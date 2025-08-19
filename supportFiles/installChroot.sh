@@ -1,5 +1,6 @@
 #!/bin/bash
 # 此 shell 脚本在 chroot 环境中执行
+echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
 
 echo 设置主机名
 echo "installer" > /etc/hostname
@@ -9,7 +10,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo 安装安全更新和 apt-utils
 apt-get update
-apt-get -y install apt-utils
+apt-get -y install apt || true
 apt-get -y upgrade
 
 echo 设置语言环境
