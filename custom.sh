@@ -7,11 +7,9 @@ if [ -z "${1:-}" ]; then
   exit 1
 fi
 
-mkdir -p imm
+mkdir -p imm output
 DOWNLOAD_URL="$1"
-filename=$(basename "$DOWNLOAD_URL")
-OUTPUT_PATH="imm/$filename"
-CUSTOM_IMG="imm/custom.img"
+OUTPUT_PATH="imm/downloaded_file"
 
 echo "下载地址: $DOWNLOAD_URL"
 echo "保存路径: $OUTPUT_PATH"
@@ -22,6 +20,7 @@ echo "✅ 下载成功!"
 file "$OUTPUT_PATH"
 
 # 生成稀疏 img 函数
+CUSTOM_IMG="imm/custom.img"
 make_sparse_img() {
     local input="$1"
     echo "生成稀疏 img: $CUSTOM_IMG"
@@ -39,84 +38,60 @@ make_sparse_img() {
     [ "$input" != "$CUSTOM_IMG" ] && rm -f "$input"
 }
 
-# 解压或转换
-EXTRACTED_FILE=""
+# 提取最终文件名函数
+get_extracted_filename() {
+    local path="$1"
+    local ftype
+    ftype=$(file --mime-type -b "$path")
+    local result=""
 
-FILE_TYPE=$(file --mime-type -b "$OUTPUT_PATH")
-case "$FILE_TYPE" in
-    application/gzip)
-        FNAME="${filename%.gz}"
-        gunzip -c "$OUTPUT_PATH" > "imm/$FNAME"
-        EXTRACTED_FILE="imm/$FNAME"
-        rm -f "$OUTPUT_PATH"
-        ;;
-    application/x-bzip2)
-        FNAME="${filename%.bz2}"
-        bzip2 -dc "$OUTPUT_PATH" > "imm/$FNAME"
-        EXTRACTED_FILE="imm/$FNAME"
-        rm -f "$OUTPUT_PATH"
-        ;;
-    application/x-xz)
-        FNAME="${filename%.xz}"
-        xz -dc "$OUTPUT_PATH" > "imm/$FNAME"
-        EXTRACTED_FILE="imm/$FNAME"
-        rm -f "$OUTPUT_PATH"
-        ;;
-    application/x-7z-compressed)
-        FILE_IN_7Z=$(7z l "$OUTPUT_PATH" | awk '/^----/{f=1;next} f && NF{print $6}' | head -n1)
-        7z x "$OUTPUT_PATH" -oimm/ || true
-        EXTRACTED_FILE="imm/$(basename "$FILE_IN_7Z")"
-        rm -f "$OUTPUT_PATH"
-        ;;
-    application/x-tar)
-        FILE_IN_TAR=$(tar -tf "$OUTPUT_PATH" | grep -v '/$' | head -n1)
-        tar -xf "$OUTPUT_PATH" -C imm/ || true
-        EXTRACTED_FILE="imm/$(basename "$FILE_IN_TAR")"
-        rm -f "$OUTPUT_PATH"
-        ;;
-    application/zip)
-        FILE_IN_ZIP=$(unzip -l "$OUTPUT_PATH" | awk 'NR>3 {print $4}' | grep -v '/$' | head -n1)
-        unzip -j -o "$OUTPUT_PATH" -d imm/ || true
-        EXTRACTED_FILE="imm/$(basename "$FILE_IN_ZIP")"
-        rm -f "$OUTPUT_PATH"
-        ;;
-    *)
-        # 按扩展名兜底处理
-        extension="${filename##*.}"
-        case "$extension" in
-            gz)
-                FNAME="${filename%.gz}"
-                gunzip -c "$OUTPUT_PATH" > "imm/$FNAME"
-                EXTRACTED_FILE="imm/$FNAME"
-                rm -f "$OUTPUT_PATH"
-                ;;
-            bz2)
-                FNAME="${filename%.bz2}"
-                bzip2 -dc "$OUTPUT_PATH" > "imm/$FNAME"
-                EXTRACTED_FILE="imm/$FNAME"
-                rm -f "$OUTPUT_PATH"
-                ;;
-            xz)
-                FNAME="${filename%.xz}"
-                xz -dc "$OUTPUT_PATH" > "imm/$FNAME"
-                EXTRACTED_FILE="imm/$FNAME"
-                rm -f "$OUTPUT_PATH"
-                ;;
-            zip)
-                unzip -j -o "$OUTPUT_PATH" -d imm/ || true
-                EXTRACTED_FILE=$(find imm -type f -printf "%T@ %p\n" | sort -nr | head -n1 | awk '{print $2}')
-                rm -f "$OUTPUT_PATH"
-                ;;
-            img)
-                EXTRACTED_FILE="$OUTPUT_PATH"
-                ;;
-            *)
-                echo "❌ 不支持的文件格式: $extension"
-                exit 1
-                ;;
-        esac
-        ;;
+    case "$ftype" in
+        application/gzip)
+            result="${path%.gz}"
+            ;;
+        application/x-bzip2)
+            result="${path%.bz2}"
+            ;;
+        application/x-xz)
+            result="${path%.xz}"
+            ;;
+        application/x-7z-compressed)
+            result=$(7z l "$path" | awk '/^----/{f=1;next} f && NF{print $6}' | head -n1)
+            result="imm/$(basename "$result")"
+            ;;
+        application/x-tar)
+            result=$(tar -tf "$path" | grep -v '/$' | head -n1)
+            result="imm/$(basename "$result")"
+            ;;
+        application/zip)
+            result=$(unzip -l "$path" | awk 'NR>3 {print $4}' | grep -v '/$' | head -n1)
+            result="imm/$(basename "$result")"
+            ;;
+        *)
+            result="$path"
+            ;;
+    esac
+
+    echo "$result"
+}
+
+# 解压或转换
+EXTRACTED_FILE=$(get_extracted_filename "$OUTPUT_PATH")
+
+case "$(file --mime-type -b "$OUTPUT_PATH")" in
+    application/gzip) gunzip -c "$OUTPUT_PATH" > "$EXTRACTED_FILE";;
+    application/x-bzip2) bzip2 -dc "$OUTPUT_PATH" > "$EXTRACTED_FILE";;
+    application/x-xz) xz -dc "$OUTPUT_PATH" > "$EXTRACTED_FILE";;
+    application/x-7z-compressed) 7z x "$OUTPUT_PATH" -oimm/ || true;;
+    application/x-tar) tar -xf "$OUTPUT_PATH" -C imm/ || true;;
+    application/zip) unzip -j -o "$OUTPUT_PATH" -d imm/ || true;;
+    *) ;; # 保留原文件
 esac
+
+# 删除原始压缩包
+rm -f "$OUTPUT_PATH"
+
+echo "解压/转换完成，文件: $EXTRACTED_FILE"
 
 # 转为稀疏 img
 make_sparse_img "$EXTRACTED_FILE"
@@ -143,7 +118,6 @@ ls -lh --block-size=1 imm/
 echo "✅ 准备合成 自定义OpenWrt 安装器"
 
 # Docker 构建
-mkdir -p output
 docker run --privileged --rm \
     -v "$(pwd)"/output:/output \
     -v "$(pwd)"/supportFiles:/supportFiles:ro \
