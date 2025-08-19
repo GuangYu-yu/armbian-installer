@@ -149,7 +149,7 @@ fi
 
 # 检查最终文件
 if [ -f "imm/custom.img" ]; then
-  ls -lh imm/
+  ls -l --block-size=1 imm/
   echo "✅ 准备合成 自定义OpenWrt 安装器"
   echo "使用文件名: $ORIGINAL_BASE_FILENAME"
 else
