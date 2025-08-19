@@ -7,7 +7,6 @@ if [ -z "${1:-}" ]; then
   exit 1
 fi
 
-rm -rf imm
 mkdir -p imm
 DOWNLOAD_URL="$1"
 filename=$(basename "$DOWNLOAD_URL")  # 从 URL 提取文件名
@@ -33,7 +32,7 @@ EXTRACTED_FILE=""
 case "$FILE_TYPE" in
   application/gzip)
     echo "检测到 gzip 压缩，解压中..."
-    gunzip -k "$OUTPUT_PATH" || true  # 保留原文件
+    gunzip -k "$OUTPUT_PATH" || true
     EXTRACTED_FILE="${OUTPUT_PATH%.gz}"
     ;;
   application/x-bzip2)
@@ -48,24 +47,19 @@ case "$FILE_TYPE" in
     ;;
   application/x-7z-compressed)
     echo "检测到 7z 压缩，解压中..."
+    # 获取 7z 压缩包内文件名
+    EXTRACTED_FILE="imm/$(7z l "$OUTPUT_PATH" | awk '/^----/{f=1;next} f && NF{print $6}' | head -n1)"
     7z x "$OUTPUT_PATH" -oimm/ || true
-    # 取解压出来的最新文件
-    EXTRACTED_FILE=$(find imm -type f -printf "%T@ %p\n" \
-      | sort -nr | head -n1 | awk '{print $2}')
     ;;
   application/x-tar)
     echo "检测到 tar 压缩，解压中..."
+    EXTRACTED_FILE="imm/$(tar -tf "$OUTPUT_PATH" | head -n1)"
     tar -xf "$OUTPUT_PATH" -C imm/ || true
-    # 取解压出来的最新文件
-    EXTRACTED_FILE=$(find imm -type f -printf "%T@ %p\n" \
-      | sort -nr | head -n1 | awk '{print $2}')
     ;;
   application/zip)
     echo "检测到 zip 压缩，解压中..."
+    EXTRACTED_FILE="imm/$(unzip -l "$OUTPUT_PATH" | awk 'NR>3 {print $4}' | grep -v '/$' | head -n1)"
     unzip -j -o "$OUTPUT_PATH" -d imm/ || true
-    # 取解压出来的最新文件
-    EXTRACTED_FILE=$(find imm -type f -printf "%T@ %p\n" \
-      | sort -nr | head -n1 | awk '{print $2}')
     ;;
   *)
     echo "未识别的文件类型，尝试按扩展名处理..."
@@ -89,8 +83,8 @@ case "$FILE_TYPE" in
       zip)
         echo "按 .zip 处理..."
         unzip -j -o "$OUTPUT_PATH" -d imm/ || true
-        EXTRACTED_FILE=$(find imm -type f -printf "%T@ %p\n" \
-          | sort -nr | head -n1 | awk '{print $2}')
+        EXTRACTED_FILE="imm/$(find imm -type f -printf "%T@ %p\n" \
+          | sort -nr | head -n1 | awk '{print $2}')"
         ;;
       img)
         echo "直接使用 img 文件: $OUTPUT_PATH"
