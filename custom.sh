@@ -156,9 +156,9 @@ fi
 
 mkdir -p output
 docker run --privileged --rm \
-        -v $(pwd)/output:/output \
-        -v $(pwd)/supportFiles:/supportFiles:ro \
-        -v $(pwd)/imm/custom.img:/mnt/custom.img \
-        -e EXTRACTED_FILE="$ORIGINAL_BASE_FILENAME" \
-        debian:buster \
-        /supportFiles/custom/build.sh
+    -v $(pwd)/output:/output \
+    -v $(pwd)/supportFiles:/supportFiles:ro \
+    -v $(pwd)/imm/custom.img:/mnt/custom.img \
+    -e EXTRACTED_FILE="$ORIGINAL_BASE_FILENAME" \
+    debian:buster \
+    /supportFiles/custom/build.sh
