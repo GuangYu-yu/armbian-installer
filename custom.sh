@@ -2,7 +2,7 @@
 set -euo pipefail  
 
 # 校验参数是否存在
-if [ -z "$1" ]; then
+if [ -z "${1:-}" ]; then
   echo "❌ 错误：未提供下载地址！"
   exit 1
 fi
@@ -32,7 +32,7 @@ EXTRACTED_FILE=""
 case "$FILE_TYPE" in
   application/gzip)
     echo "检测到 gzip 压缩，解压中..."
-    gunzip -k "$OUTPUT_PATH" || true  # 忽略解压缩时的警告
+    gunzip -k "$OUTPUT_PATH" || true  # 保留原文件
     EXTRACTED_FILE="${OUTPUT_PATH%.gz}"
     ;;
   application/x-bzip2)
@@ -48,17 +48,23 @@ case "$FILE_TYPE" in
   application/x-7z-compressed)
     echo "检测到 7z 压缩，解压中..."
     7z x "$OUTPUT_PATH" -oimm/ || true
-    EXTRACTED_FILE=$(find imm -type f | head -n 1)
+    # 取解压出来的最新文件
+    EXTRACTED_FILE=$(find imm -type f -printf "%T@ %p\n" \
+      | sort -nr | head -n1 | awk '{print $2}')
     ;;
   application/x-tar)
     echo "检测到 tar 压缩，解压中..."
     tar -xf "$OUTPUT_PATH" -C imm/ || true
-    EXTRACTED_FILE=$(find imm -type f | head -n 1)
+    # 取解压出来的最新文件
+    EXTRACTED_FILE=$(find imm -type f -printf "%T@ %p\n" \
+      | sort -nr | head -n1 | awk '{print $2}')
     ;;
   application/zip)
     echo "检测到 zip 压缩，解压中..."
     unzip -j -o "$OUTPUT_PATH" -d imm/ || true
-    EXTRACTED_FILE=$(find imm -type f | head -n 1)
+    # 取解压出来的最新文件
+    EXTRACTED_FILE=$(find imm -type f -printf "%T@ %p\n" \
+      | sort -nr | head -n1 | awk '{print $2}')
     ;;
   *)
     echo "未识别的文件类型，尝试按扩展名处理..."
@@ -82,7 +88,8 @@ case "$FILE_TYPE" in
       zip)
         echo "按 .zip 处理..."
         unzip -j -o "$OUTPUT_PATH" -d imm/ || true
-        EXTRACTED_FILE=$(find imm -type f | head -n 1)
+        EXTRACTED_FILE=$(find imm -type f -printf "%T@ %p\n" \
+          | sort -nr | head -n1 | awk '{print $2}')
         ;;
       img)
         echo "直接使用 img 文件: $OUTPUT_PATH"
@@ -104,9 +111,8 @@ fi
 
 echo "解压完成，使用文件: $EXTRACTED_FILE"
 
-# 保存原始文件名
+# 保存原始文件名（去掉常见镜像后缀）
 ORIGINAL_BASE_FILENAME=$(basename "$EXTRACTED_FILE")
-# 移除常见的镜像格式后缀
 ORIGINAL_BASE_FILENAME=${ORIGINAL_BASE_FILENAME%.img}
 ORIGINAL_BASE_FILENAME=${ORIGINAL_BASE_FILENAME%.qcow2}
 ORIGINAL_BASE_FILENAME=${ORIGINAL_BASE_FILENAME%.vdi}
@@ -118,8 +124,6 @@ echo "保存原始文件名: $ORIGINAL_BASE_FILENAME"
 # 检查文件是否为 img 格式，如果不是则转换
 if [[ "$EXTRACTED_FILE" != *.img ]]; then
   echo "检测到非 img 格式文件，尝试转换为 img 格式..."
-  
-  # 尝试使用 qemu-img 检测格式
   if command -v qemu-img &> /dev/null; then
     FORMAT=$(qemu-img info "$EXTRACTED_FILE" 2>/dev/null | grep "file format" | awk '{print $3}')
     if [ -n "$FORMAT" ] && [ "$FORMAT" != "raw" ]; then
@@ -127,17 +131,15 @@ if [[ "$EXTRACTED_FILE" != *.img ]]; then
       qemu-img convert -O raw "$EXTRACTED_FILE" "imm/custom.img"
       EXTRACTED_FILE="imm/custom.img"
     else
-      # 如果是 raw 格式或无法检测，直接复制并重命名
       cp "$EXTRACTED_FILE" "imm/custom.img"
       EXTRACTED_FILE="imm/custom.img"
     fi
   else
-    # 如果没有 qemu-img 命令，直接复制并重命名
     cp "$EXTRACTED_FILE" "imm/custom.img"
     EXTRACTED_FILE="imm/custom.img"
   fi
 else
-  # 如果已经是 img 格式，但不在 imm/custom.img 位置，则复制过去
+  # 如果已经是 img 格式，但不在目标路径，则复制过去
   if [ "$EXTRACTED_FILE" != "imm/custom.img" ]; then
     cp "$EXTRACTED_FILE" "imm/custom.img"
     EXTRACTED_FILE="imm/custom.img"
@@ -156,9 +158,9 @@ fi
 
 mkdir -p output
 docker run --privileged --rm \
-    -v $(pwd)/output:/output \
-    -v $(pwd)/supportFiles:/supportFiles:ro \
-    -v $(pwd)/imm/custom.img:/mnt/custom.img \
+    -v "$(pwd)"/output:/output \
+    -v "$(pwd)"/supportFiles:/supportFiles:ro \
+    -v "$(pwd)"/imm/custom.img:/mnt/custom.img \
     -e EXTRACTED_FILE="$ORIGINAL_BASE_FILENAME" \
     debian:buster \
     /supportFiles/custom/build.sh
